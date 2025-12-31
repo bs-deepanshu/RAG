@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>RAG QA Interface</title>
+<style>
+  body { 
+    font-family: Arial, sans-serif; 
+    padding: 20px; 
+    background-color: #f5f5f5;
+  }
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  input, textarea {
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+  input { width: 300px; }
+  textarea { width: 100%; box-sizing: border-box; }
+  button {
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  button:hover { background-color: #0056b3; }
+  
+  .chunk {
+    padding: 12px;
+    margin: 10px 0;
+    border: 1px solid #ddd;
+    border-left: 4px solid #ccc;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+  }
+  .chunk.highlight {
+    border-left-color: #28a745;
+    background-color: #f0fdf4;
+    border: 1px solid #28a745;
+  }
+  .chunk-header {
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 8px;
+  }
+  .chunk.highlight .chunk-header {
+    color: #28a745;
+  }
+  .chunk-text {
+    color: #555;
+    line-height: 1.5;
+  }
+  .chunk-label {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: bold;
+    margin-left: 8px;
+  }
+  .chunk.highlight .chunk-label {
+    background-color: #28a745;
+    color: white;
+  }
+  
+  #answer {
+    padding: 15px;
+    background-color: #e7f3ff;
+    border: 1px solid #0066cc;
+    border-radius: 4px;
+    margin-top: 10px;
+    line-height: 1.6;
+  }
+  h2 { color: #333; margin-top: 30px; }
+  h1 { color: #007bff; }
+  .similarity-score {
+    color: #666;
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>RAG Question Answering</h1>
+  
+  <div>
+    <label for="pdfName">PDF Name:</label><br>
+    <input id="pdfName" placeholder="e.g., document.pdf" style="width:300px; margin-top: 5px;"/>
+  </div>
+  
+  <div style="margin-top: 15px;">
+    <label for="question">Your Question:</label><br>
+    <textarea id="question" placeholder="Enter your question here..." rows="3" style="margin-top: 5px;"></textarea>
+  </div>
+  
+  <div style="margin-top: 15px;">
+    <button onclick="askQuestion()">Ask Question</button>
+  </div>
+
+  <h2>Retrieved Chunks</h2>
+  <p style="color: #666; font-size: 14px;">Below are the top chunks retrieved from the PDF. <span style="color: #28a745; font-weight: bold;">Green highlighted chunks</span> were used to generate the answer.</p>
+  <div id="chunks"></div>
+
+  <h2>Answer</h2>
+  <div id="answer"></div>
+</div>
+
+<script>
+async function askQuestion() {
+  const pdfName = document.getElementById("pdfName").value;
+  const question = document.getElementById("question").value;
+
+  if (!pdfName || !question) {
+    alert("Please fill in both PDF name and question");
+    return;
+  }
+
+  const res = await fetch("http://localhost:3000/ask", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pdfName, question })
+  });
+
+  const data = await res.json();
+
+  const chunksDiv = document.getElementById("chunks");
+  chunksDiv.innerHTML = "";
+  
+  data.chunks.forEach(chunk => {
+    const div = document.createElement("div");
+    div.className = "chunk" + (chunk.highlight ? " highlight" : "");
+    
+    const label = chunk.highlight ? '<span class="chunk-label">✓ USED FOR ANSWER</span>' : '';
+    const similarity = (1 - chunk.distance).toFixed(4); // Convert distance to similarity score
+    
+    div.innerHTML = `
+      <div class="chunk-header">
+        Rank #${chunk.rank} 
+        <span class="similarity-score">(Similarity: ${similarity})</span>
+        ${label}
+      </div>
+      <div class="chunk-text">${chunk.text}</div>
+    `;
+    chunksDiv.appendChild(div);
+  });
+
+  document.getElementById("answer").innerText = data.answer;
+}
+</script>
+</body>
+</html>
