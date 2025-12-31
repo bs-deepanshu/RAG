@@ -10,6 +10,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
+    "@browserstack/ai-sdk": "file:./sdk/package",
     "@cedrugs/pdf-parse": "^1.0.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",

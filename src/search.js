@@ -1,8 +1,8 @@
 import { pool } from "./db.js";
 import { embedText } from "./embeddings.js";
 
-export async function findRelevantChunks(question, pdfName, limit = 5) {
-  const embedding = await embedText(question);
+export async function findRelevantChunks(question, pdfName, limit = 5, parentTrace = null) {
+  const embedding = await embedText(question, parentTrace);
 
   // Convert the numerical array into a pgvector compatible string "[0.1, 0.2, ...]"
   const formattedVector = `[${embedding.join(",")}]`;
@@ -18,10 +18,21 @@ export async function findRelevantChunks(question, pdfName, limit = 5) {
     [formattedVector, pdfName, limit] // Pass the formatted string here
   );
 
-  return result.rows.map((row, index) => ({
+  const chunks = result.rows.map((row, index) => ({
     text: row.content,
     rank: index + 1,
     distance: row.distance,
     highlight: index === 0, // top chunk
   }));
+
+  // Create span for retrieval if parent trace exists
+  if (parentTrace) {
+    parentTrace.span({
+      name: "Vector Database Retrieval",
+      input: { question, pdfName, limit },
+      output: { retrievedChunks: chunks.length, distances: chunks.map(c => c.distance) },
+    });
+  }
+
+  return chunks;
 }
